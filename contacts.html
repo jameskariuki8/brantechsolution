@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="header-styles.css"/>
   <link rel="stylesheet" href="styles2.css">
+  <link rel="stylesheet" href="chat-assistant.css">
 
 </head>
 <body class="bg-white text-gray-800 overflow-x-hidden">
@@ -131,27 +132,34 @@
           <h2 class="text-2xl font-bold text-gray-900 mb-2">Send Us a Message</h2>
           <p class="text-gray-600">We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
         </div>
-        <form class="space-y-6">
+        <form id="contactForm" class="space-y-6">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-              <input type="text" id="name" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all text-sm sm:text-base" placeholder="Your name">
+              <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
+              <input type="text" id="name" name="name" required class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all text-sm sm:text-base" placeholder="Your name">
             </div>
             <div>
-              <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-              <input type="email" id="email" class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all text-sm sm:text-base" placeholder="your@email.com">
+              <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address *</label>
+              <input type="email" id="email" name="email" required class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all text-sm sm:text-base" placeholder="your@email.com">
             </div>
           </div>
           <div>
-            <label for="subject" class="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
-            <input type="text" id="subject" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all" placeholder="How can we help?">
+            <label for="subject" class="block text-sm font-semibold text-gray-700 mb-2">Subject *</label>
+            <input type="text" id="subject" name="subject" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all" placeholder="How can we help?">
           </div>
           <div>
-            <label for="message" class="block text-sm font-semibold text-gray-700 mb-2">Message</label>
-            <textarea id="message" rows="5" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all resize-none" placeholder="Tell us about your project..."></textarea>
+            <label for="message" class="block text-sm font-semibold text-gray-700 mb-2">Message *</label>
+            <textarea id="message" name="message" rows="5" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[color:var(--brantech-blue)] focus:border-transparent transition-all resize-none" placeholder="Tell us about your project..."></textarea>
           </div>
-          <button type="submit" class="w-full bg-gradient-to-r from-[color:var(--brantech-blue)] to-[color:var(--brantech-green)] text-white py-3 sm:py-4 px-4 sm:px-6 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all text-sm sm:text-base">
-            Send Message
+          
+          <!-- Status Messages -->
+          <div id="formStatus" class="hidden p-4 rounded-xl text-center font-medium"></div>
+          
+          <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-[color:var(--brantech-blue)] to-[color:var(--brantech-green)] text-white py-3 sm:py-4 px-4 sm:px-6 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+            <span id="submitText">Send Message</span>
+            <span id="submitSpinner" class="hidden">
+              <i class="fas fa-spinner fa-spin mr-2"></i>Sending...
+            </span>
           </button>
         </form>
       </div>
@@ -225,5 +233,201 @@
   <!-- Footer -->
   <div id="footer"></div>
   <script src="components.js"></script>
+  
+  <!-- Contact Form Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const contactForm = document.getElementById('contactForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const submitText = document.getElementById('submitText');
+      const submitSpinner = document.getElementById('submitSpinner');
+      const formStatus = document.getElementById('formStatus');
+      
+      // Webhook endpoint
+      const WEBHOOK_URL = 'https://n8n.bigaddict.shop/webhook-test/brantech/contact';
+      
+      contactForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Get form data
+        const formData = new FormData(contactForm);
+        const data = {
+          name: formData.get('name'),
+          email: formData.get('email'),
+          subject: formData.get('subject'),
+          message: formData.get('message'),
+          timestamp: new Date().toISOString(),
+          pageUrl: window.location.href,
+          userAgent: navigator.userAgent
+        };
+        
+        // Show loading state
+        setLoadingState(true);
+        hideStatus();
+        
+        try {
+          const response = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            showStatus('success', 'Thank you! Your message has been sent successfully. We\'ll get back to you soon.');
+            contactForm.reset();
+          } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+        } catch (error) {
+          console.error('Error sending message:', error);
+          showStatus('error', 'Sorry, there was an error sending your message. Please try again or contact us directly at solutionsbrantech@gmail.com');
+        } finally {
+          setLoadingState(false);
+        }
+      });
+      
+      function setLoadingState(loading) {
+        submitBtn.disabled = loading;
+        if (loading) {
+          submitText.classList.add('hidden');
+          submitSpinner.classList.remove('hidden');
+        } else {
+          submitText.classList.remove('hidden');
+          submitSpinner.classList.add('hidden');
+        }
+      }
+      
+      function showStatus(type, message) {
+        formStatus.className = `p-4 rounded-xl text-center font-medium ${
+          type === 'success' 
+            ? 'bg-green-100 text-green-800 border border-green-200' 
+            : 'bg-red-100 text-red-800 border border-red-200'
+        }`;
+        formStatus.textContent = message;
+        formStatus.classList.remove('hidden');
+        
+        // Scroll to status message
+        formStatus.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Auto-hide success messages after 5 seconds
+        if (type === 'success') {
+          setTimeout(() => {
+            hideStatus();
+          }, 5000);
+        }
+      }
+      
+      function hideStatus() {
+        formStatus.classList.add('hidden');
+      }
+      
+      // Add real-time validation feedback
+      const inputs = contactForm.querySelectorAll('input[required], textarea[required]');
+      inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+          if (this.value.trim() === '') {
+            this.classList.add('border-red-300', 'focus:ring-red-500');
+            this.classList.remove('border-gray-200', 'focus:ring-[color:var(--brantech-blue)]');
+          } else {
+            this.classList.remove('border-red-300', 'focus:ring-red-500');
+            this.classList.add('border-gray-200', 'focus:ring-[color:var(--brantech-blue)]');
+          }
+        });
+        
+        input.addEventListener('input', function() {
+          if (this.value.trim() !== '') {
+            this.classList.remove('border-red-300', 'focus:ring-red-500');
+            this.classList.add('border-gray-200', 'focus:ring-[color:var(--brantech-blue)]');
+          }
+        });
+      });
+    });
+  </script>
+
+  <!-- Chat Assistant -->
+  <div id="chatAssistant" class="chat-assistant">
+    <!-- Floating Chat Button -->
+    <div id="chatToggle" class="chat-toggle">
+      <svg class="chat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <div class="chat-notification" id="chatNotification" style="display: none;"></div>
+    </div>
+
+    <!-- Chat Window -->
+    <div id="chatWindow" class="chat-window">
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="chat-header-info">
+          <div class="chat-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="chat-header-text">
+            <h3>BranTech Assistant</h3>
+            <p>How can I help you today?</p>
+          </div>
+        </div>
+        <button id="chatClose" class="chat-close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Chat Messages -->
+      <div id="chatMessages" class="chat-messages">
+        <div class="chat-welcome">
+          <div class="welcome-message">
+            <div class="welcome-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div class="welcome-text">
+              <p>Hello! I'm your BranTech Solutions assistant. I can help you with:</p>
+              <ul>
+                <li>Our services and solutions</li>
+                <li>Project inquiries</li>
+                <li>Technical support</li>
+                <li>General questions</li>
+              </ul>
+              <p>What would you like to know?</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input -->
+      <div class="chat-input-container">
+        <div class="chat-input-wrapper">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Type your message..." maxlength="500">
+          <button id="chatSend" class="chat-send" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="chat-typing" id="chatTyping" style="display: none;">
+          <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span>BranTech Assistant is typing...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="components.js"></script>
+  <script src="chat-assistant.js"></script>
 </body>
 </html>

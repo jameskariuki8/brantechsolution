@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="header-styles.css"/>
   <link rel="stylesheet" href="styles2.css"/>
+  <link rel="stylesheet" href="chat-assistant.css"/>
   <style>
     :root {
       --brantech-blue: #2563eb;
@@ -365,6 +366,89 @@
 
   <!-- Footer -->
   <div id="footer"></div>
+
+  <!-- Chat Assistant -->
+  <div id="chatAssistant" class="chat-assistant">
+    <!-- Floating Chat Button -->
+    <div id="chatToggle" class="chat-toggle">
+      <svg class="chat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <div class="chat-notification" id="chatNotification" style="display: none;"></div>
+    </div>
+
+    <!-- Chat Window -->
+    <div id="chatWindow" class="chat-window">
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="chat-header-info">
+          <div class="chat-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="chat-header-text">
+            <h3>BranTech Assistant</h3>
+            <p>How can I help you today?</p>
+          </div>
+        </div>
+        <button id="chatClose" class="chat-close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Chat Messages -->
+      <div id="chatMessages" class="chat-messages">
+        <div class="chat-welcome">
+          <div class="welcome-message">
+            <div class="welcome-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div class="welcome-text">
+              <p>Hello! I'm your BranTech Solutions assistant. I can help you with:</p>
+              <ul>
+                <li>Our services and solutions</li>
+                <li>Project inquiries</li>
+                <li>Technical support</li>
+                <li>General questions</li>
+              </ul>
+              <p>What would you like to know?</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input -->
+      <div class="chat-input-container">
+        <div class="chat-input-wrapper">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Type your message..." maxlength="500">
+          <button id="chatSend" class="chat-send" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="chat-typing" id="chatTyping" style="display: none;">
+          <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span>BranTech Assistant is typing...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="components.js"></script>
+  <script src="chat-assistant.js"></script>
 </body>
 </html>
