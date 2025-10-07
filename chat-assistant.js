@@ -25,6 +25,7 @@ class ChatAssistant {
     this.chatSend = document.getElementById('chatSend');
     this.chatTyping = document.getElementById('chatTyping');
     this.chatNotification = document.getElementById('chatNotification');
+    this.typingMessageEl = null;
     
     this.init();
   }
@@ -330,7 +331,13 @@ class ChatAssistant {
     
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.textContent = content;
+    
+    // Render markdown for assistant messages, plain text for user messages
+    if (role === 'assistant') {
+      contentDiv.innerHTML = this.renderMarkdown(content);
+    } else {
+      contentDiv.textContent = content;
+    }
     
     messageDiv.appendChild(avatarDiv);
     messageDiv.appendChild(contentDiv);
@@ -354,6 +361,86 @@ class ChatAssistant {
     if (!this.isOpen && role === 'assistant') {
       this.showNotification();
     }
+  }
+
+  /**
+   * Render markdown content to HTML
+   */
+  renderMarkdown(text) {
+    if (!text) return '';
+    
+    // Escape HTML first to prevent XSS
+    let html = this.escapeHtml(text);
+    
+    // Convert markdown to HTML
+    html = this.convertMarkdownToHtml(html);
+    
+    return html;
+  }
+
+  /**
+   * Escape HTML to prevent XSS attacks
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
+   * Convert markdown syntax to HTML
+   */
+  convertMarkdownToHtml(text) {
+    if (!text) return '';
+    
+    // Code blocks first (to prevent other parsing from affecting them)
+    text = text.replace(/```([\s\S]*?)```/g, '<pre><code class="code-block">$1</code></pre>');
+    
+    // Inline code: `code` (but not inside code blocks)
+    text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    
+    // Bold text: **text** or __text__
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/__(.*?)__/g, '<strong>$1</strong>');
+    
+    // Italic text: *text* or _text_ (but not inside code)
+    text = text.replace(/(?<!<code[^>]*>)\*([^*]+)\*(?!<\/code>)/g, '<em>$1</em>');
+    text = text.replace(/(?<!<code[^>]*>)_([^_]+)_(?!<\/code>)/g, '<em>$1</em>');
+    
+    // Headers: # Header, ## Header, ### Header
+    text = text.replace(/^### (.*$)/gm, '<h3 class="markdown-h3">$1</h3>');
+    text = text.replace(/^## (.*$)/gm, '<h2 class="markdown-h2">$1</h2>');
+    text = text.replace(/^# (.*$)/gm, '<h1 class="markdown-h1">$1</h1>');
+    
+    // Links: [text](url)
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="markdown-link">$1</a>');
+    
+    // Lists: - item or * item (handle multiple items)
+    text = text.replace(/^[\s]*[-*] (.*$)/gm, '<li class="markdown-li">$1</li>');
+    // Wrap consecutive list items in ul tags
+    text = text.replace(/(<li class="markdown-li">.*?<\/li>)(\s*<li class="markdown-li">.*?<\/li>)*/gs, (match) => {
+      return '<ul class="markdown-ul">' + match + '</ul>';
+    });
+    
+    // Numbered lists: 1. item (handle multiple items)
+    text = text.replace(/^[\s]*\d+\. (.*$)/gm, '<li class="markdown-li">$1</li>');
+    // Wrap consecutive numbered list items in ol tags
+    text = text.replace(/(<li class="markdown-li">.*?<\/li>)(\s*<li class="markdown-li">.*?<\/li>)*/gs, (match) => {
+      return '<ol class="markdown-ol">' + match + '</ol>';
+    });
+    
+    // Line breaks: Convert double newlines to paragraphs
+    text = text.replace(/\n\n/g, '</p><p class="markdown-p">');
+    text = '<p class="markdown-p">' + text + '</p>';
+    
+    // Clean up empty paragraphs
+    text = text.replace(/<p class="markdown-p"><\/p>/g, '');
+    text = text.replace(/<p class="markdown-p">\s*<\/p>/g, '');
+    
+    // Convert single newlines to <br> (but not inside code blocks)
+    text = text.replace(/(?<!<code[^>]*>)\n(?!<\/code>)/g, '<br>');
+    
+    return text;
   }
 
   /**
@@ -387,7 +474,45 @@ class ChatAssistant {
    * Show typing indicator
    */
   showTyping() {
-    this.chatTyping.style.display = 'flex';
+    // If a typing bubble already exists, do nothing
+    if (this.typingMessageEl) {
+      this.scrollToBottom();
+      return;
+    }
+
+    // Build a message-like typing bubble inside the messages stream
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message assistant typing';
+
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'message-avatar';
+    const avatarSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    avatarSvg.setAttribute('viewBox', '0 0 24 24');
+    avatarSvg.setAttribute('fill', 'none');
+    avatarSvg.setAttribute('stroke', 'currentColor');
+    avatarSvg.setAttribute('stroke-width', '2');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2');
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', '12');
+    circle.setAttribute('cy', '7');
+    circle.setAttribute('r', '4');
+    avatarSvg.appendChild(path);
+    avatarSvg.appendChild(circle);
+    avatarDiv.appendChild(avatarSvg);
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    const typingWrap = document.createElement('div');
+    typingWrap.className = 'typing-indicator';
+    typingWrap.innerHTML = '<span></span><span></span><span></span>';
+    contentDiv.appendChild(typingWrap);
+
+    messageDiv.appendChild(avatarDiv);
+    messageDiv.appendChild(contentDiv);
+
+    this.chatMessages.appendChild(messageDiv);
+    this.typingMessageEl = messageDiv;
     this.scrollToBottom();
   }
 
@@ -395,7 +520,11 @@ class ChatAssistant {
    * Hide typing indicator
    */
   hideTyping() {
-    this.chatTyping.style.display = 'none';
+    // Remove typing bubble from messages if present
+    if (this.typingMessageEl && this.typingMessageEl.parentNode) {
+      this.typingMessageEl.parentNode.removeChild(this.typingMessageEl);
+    }
+    this.typingMessageEl = null;
   }
 
   /**

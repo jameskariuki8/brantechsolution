@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Test - BranTech Chat Assistant</title>
+    <link rel="stylesheet" href="chat-assistant.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: linear-gradient(135deg, #1f3a93, #47a447);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            opacity: 0.9;
+        }
+        .message {
+            display: flex;
+            margin-bottom: 16px;
+            align-items: flex-start;
+        }
+        .message.assistant {
+            justify-content: flex-start;
+        }
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .message-content {
+            max-width: 400px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            background: white;
+            color: #1f2937;
+            border: 1px solid #e5e7eb;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Markdown Rendering Test</h1>
+        <p>This page tests the markdown rendering functionality of the BranTech Chat Assistant.</p>
+        
+        <h2>Test Messages</h2>
+        <button class="test-button" onclick="testBasicMarkdown()">Basic Markdown</button>
+        <button class="test-button" onclick="testCodeBlocks()">Code Blocks</button>
+        <button class="test-button" onclick="testLists()">Lists</button>
+        <button class="test-button" onclick="testHeaders()">Headers</button>
+        <button class="test-button" onclick="testLinks()">Links</button>
+        <button class="test-button" onclick="testComplex()">Complex Example</button>
+        <button class="test-button" onclick="clearMessages()">Clear</button>
+    </div>
+
+    <div class="test-container">
+        <h2>Chat Messages</h2>
+        <div id="testMessages"></div>
+    </div>
+
+    <script>
+        // Simple markdown renderer (same as in chat-assistant.js)
+        function renderMarkdown(text) {
+            if (!text) return '';
+            
+            // Escape HTML first to prevent XSS
+            let html = escapeHtml(text);
+            
+            // Convert markdown to HTML
+            html = convertMarkdownToHtml(html);
+            
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function convertMarkdownToHtml(text) {
+            if (!text) return '';
+            
+            // Code blocks first (to prevent other parsing from affecting them)
+            text = text.replace(/```([\s\S]*?)```/g, '<pre><code class="code-block">$1</code></pre>');
+            
+            // Inline code: `code` (but not inside code blocks)
+            text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+            
+            // Bold text: **text** or __text__
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/__(.*?)__/g, '<strong>$1</strong>');
+            
+            // Italic text: *text* or _text_ (but not inside code)
+            text = text.replace(/(?<!<code[^>]*>)\*([^*]+)\*(?!<\/code>)/g, '<em>$1</em>');
+            text = text.replace(/(?<!<code[^>]*>)_([^_]+)_(?!<\/code>)/g, '<em>$1</em>');
+            
+            // Headers: # Header, ## Header, ### Header
+            text = text.replace(/^### (.*$)/gm, '<h3 class="markdown-h3">$1</h3>');
+            text = text.replace(/^## (.*$)/gm, '<h2 class="markdown-h2">$1</h2>');
+            text = text.replace(/^# (.*$)/gm, '<h1 class="markdown-h1">$1</h1>');
+            
+            // Links: [text](url)
+            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="markdown-link">$1</a>');
+            
+            // Lists: - item or * item (handle multiple items)
+            text = text.replace(/^[\s]*[-*] (.*$)/gm, '<li class="markdown-li">$1</li>');
+            // Wrap consecutive list items in ul tags
+            text = text.replace(/(<li class="markdown-li">.*?<\/li>)(\s*<li class="markdown-li">.*?<\/li>)*/gs, (match) => {
+                return '<ul class="markdown-ul">' + match + '</ul>';
+            });
+            
+            // Numbered lists: 1. item (handle multiple items)
+            text = text.replace(/^[\s]*\d+\. (.*$)/gm, '<li class="markdown-li">$1</li>');
+            // Wrap consecutive numbered list items in ol tags
+            text = text.replace(/(<li class="markdown-li">.*?<\/li>)(\s*<li class="markdown-li">.*?<\/li>)*/gs, (match) => {
+                return '<ol class="markdown-ol">' + match + '</ol>';
+            });
+            
+            // Line breaks: Convert double newlines to paragraphs
+            text = text.replace(/\n\n/g, '</p><p class="markdown-p">');
+            text = '<p class="markdown-p">' + text + '</p>';
+            
+            // Clean up empty paragraphs
+            text = text.replace(/<p class="markdown-p"><\/p>/g, '');
+            text = text.replace(/<p class="markdown-p">\s*<\/p>/g, '');
+            
+            // Convert single newlines to <br> (but not inside code blocks)
+            text = text.replace(/(?<!<code[^>]*>)\n(?!<\/code>)/g, '<br>');
+            
+            return text;
+        }
+
+        function addTestMessage(content) {
+            const messagesContainer = document.getElementById('testMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'message-avatar';
+            avatarDiv.innerHTML = '🤖';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = renderMarkdown(content);
+            
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function testBasicMarkdown() {
+            const content = `Here's some **bold text** and *italic text* with \`inline code\`.
+
+You can also use __double underscores__ for bold and _single underscores_ for italic.`;
+            addTestMessage(content);
+        }
+
+        function testCodeBlocks() {
+            const content = `Here's a code block:
+
+\`\`\`javascript
+function greet(name) {
+    return \`Hello, \${name}!\`;
+}
+
+console.log(greet("World"));
+\`\`\`
+
+And some \`inline code\` in the text.`;
+            addTestMessage(content);
+        }
+
+        function testLists() {
+            const content = `Here are some lists:
+
+**Unordered List:**
+- First item
+- Second item
+- Third item
+
+**Ordered List:**
+1. First step
+2. Second step
+3. Third step`;
+            addTestMessage(content);
+        }
+
+        function testHeaders() {
+            const content = `# Main Header
+This is under the main header.
+
+## Sub Header
+This is under a sub header.
+
+### Small Header
+This is under a small header.`;
+            addTestMessage(content);
+        }
+
+        function testLinks() {
+            const content = `Here are some links:
+
+- [BranTech Solutions](https://brantechsolution.com)
+- [GitHub](https://github.com)
+- [Contact Us](mailto:info@brantechsolution.com)`;
+            addTestMessage(content);
+        }
+
+        function testComplex() {
+            const content = `# BranTech Solutions
+
+Welcome to **BranTech Solutions**! We offer:
+
+## Our Services
+- **Web Development** - Modern, responsive websites
+- **Mobile Apps** - iOS and Android applications
+- **Digital Strategy** - Data-driven solutions
+
+## Code Example
+Here's how to get started:
+
+\`\`\`javascript
+const brantech = {
+    services: ['web', 'mobile', 'strategy'],
+    contact: 'info@brantechsolution.com'
+};
+\`\`\`
+
+Visit our [website](https://brantechsolution.com) for more information!`;
+            addTestMessage(content);
+        }
+
+        function clearMessages() {
+            document.getElementById('testMessages').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
